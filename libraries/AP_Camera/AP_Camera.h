@@ -37,6 +37,7 @@ public:
         _trigger_counter(0),    // count of number of cycles shutter has been held open
         _image_index(0),
         log_camera_bit(_log_camera_bit),
+		_camera_switched_on(false),
         current_loc(_loc),
         gps(_gps),
         ahrs(_ahrs)
@@ -65,6 +66,10 @@ public:
     // update camera trigger - 50Hz
     void update_trigger();
 
+    void switch_on(void);
+
+    void switch_off(void);
+
     static const struct AP_Param::GroupInfo        var_info[];
 
 private:
@@ -74,6 +79,7 @@ private:
     AP_Int16        _servo_on_pwm;      // PWM value to move servo to when shutter is activated
     AP_Int16        _servo_off_pwm;     // PWM value to move servo to when shutter is deactivated
     uint8_t         _trigger_counter;   // count of number of cycles shutter has been held open
+
     AP_Relay       *_apm_relay;         // pointer to relay object from the base class Relay.
 
     void            servo_pic();        // Servo operated camera
@@ -95,6 +101,7 @@ private:
     // pin number for accurate camera feedback messages
     AP_Int8         _feedback_pin;
     AP_Int8         _feedback_polarity;
+    AP_Int8         _control_level;
 
     // this is set to 1 when camera trigger pin has fired
     static volatile bool   _camera_triggered;
@@ -107,6 +114,8 @@ private:
     const struct Location &current_loc;
     const AP_GPS &gps;
     const AP_AHRS &ahrs;
+
+    bool   _camera_switched_on;
 
     // single entry point to take pictures
     //  set send_mavlink_msg to true to send DO_DIGICAM_CONTROL message to all components

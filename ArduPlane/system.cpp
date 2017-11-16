@@ -445,6 +445,7 @@ void Plane::set_mode(enum FlightMode mode, mode_reason_t reason)
         break;
 
     case AUTO:
+    	camera.switch_on();
         auto_throttle_mode = true;
         auto_navigation_mode = true;
         if (quadplane.available() && quadplane.enable == 2) {
@@ -464,6 +465,7 @@ void Plane::set_mode(enum FlightMode mode, mode_reason_t reason)
         auto_navigation_mode = true;
         prev_WP_loc = current_loc;
         do_RTL(get_RTL_altitude());
+        camera.switch_off();
         break;
 
     case LOITER:

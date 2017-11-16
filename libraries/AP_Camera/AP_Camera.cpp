@@ -91,6 +91,13 @@ const AP_Param::GroupInfo AP_Camera::var_info[] = {
     // @Values: 0:TriggerLow,1:TriggerHigh
     // @User: Standard
     AP_GROUPINFO("FEEDBACK_POL",  9, AP_Camera, _feedback_polarity, 1),
+
+    // @Param: CONTROL_LEVEL
+    // @DisplayName: Camera control level
+    // @Description: Determines control authority of APM
+    // @Values: 0: No switch-off and switch-on control, 1: Only switch-off toggle on RTL 2:Switch-on and Switch-off over RTL and mavlink cmd
+    // @User: Standard
+    AP_GROUPINFO("CNTRL_LEVEL",  10, AP_Camera, _control_level, 1),
     
     AP_GROUPEND
 };
@@ -132,6 +139,11 @@ void
 AP_Camera::trigger_pic(bool send_mavlink_msg)
 {
     setup_feedback_callback();
+
+    if((!_camera_switched_on) && (_control_level == 2)){
+    	switch_on();
+    	return;
+    }
 
     _image_index++;
     switch (_trigger_type)
@@ -180,6 +192,9 @@ AP_Camera::trigger_pic_cleanup()
                 break;
         }
     }
+
+
+
 }
 
 /// decode deprecated MavLink message that controls camera.
@@ -219,10 +234,19 @@ void AP_Camera::configure(float shooting_mode, float shutter_speed, float apertu
 
 void AP_Camera::control(float session, float zoom_pos, float zoom_step, float focus_lock, float shooting_cmd, float cmd_id)
 {
+//	bool ret = false;
+
     // take picture
     if (is_equal(shooting_cmd,1.0f)) {
         trigger_pic(false);
         log_picture();
+    } else if (is_equal(session, 1.0f)) {
+        //turn on the camera
+        switch_on();
+//        ret = true;
+    } else if (is_equal(session, 0.0f)) {
+        switch_off();
+//        ret = true;
     }
 
     mavlink_message_t msg;
@@ -439,4 +463,68 @@ void AP_Camera::update_trigger()
             }
         }
     }
+}
+
+void AP_Camera::switch_on(void){
+
+	if(_control_level != 2){
+		return;
+	}
+
+	if(_camera_switched_on){
+		return;
+	}
+    switch (_trigger_type)
+    {
+    case AP_CAMERA_TRIGGER_TYPE_SERVO:
+        return;                   // Servo operated camera --> do nothing
+        break;
+    case AP_CAMERA_TRIGGER_TYPE_RELAY:
+        if (_relay_on) {
+            _apm_relay->on(1);
+        } else {
+            _apm_relay->off(1);
+        }
+
+        gcs().send_text(MAV_SEVERITY_INFO, "Camera: Swiched ON \n");
+
+        break;
+    }
+    _camera_switched_on = true;
+
+
+}
+
+void AP_Camera::switch_off(void){
+
+
+	if((_control_level) < 1){
+		return;
+	}else if((_control_level) == 1){
+		_camera_switched_on = true;
+	}
+
+	if(!_camera_switched_on){
+		return;
+	}
+
+    switch (_trigger_type)
+    {
+    case AP_CAMERA_TRIGGER_TYPE_SERVO:
+        return;                   // Servo operated camera --> do nothing
+        break;
+    case AP_CAMERA_TRIGGER_TYPE_RELAY:
+        if (_relay_on) {
+            _apm_relay->on(1);
+        } else {
+            _apm_relay->off(1);
+        }
+
+        gcs().send_text(MAV_SEVERITY_INFO, "Camera: Swiched OFF \n");
+
+        break;
+    }
+    _camera_switched_on = false;
+
+
 }
