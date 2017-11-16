@@ -445,7 +445,6 @@ void Plane::set_mode(enum FlightMode mode, mode_reason_t reason)
         break;
 
     case AUTO:
-    	camera.switch_on();
         auto_throttle_mode = true;
         auto_navigation_mode = true;
         if (quadplane.available() && quadplane.enable == 2) {
