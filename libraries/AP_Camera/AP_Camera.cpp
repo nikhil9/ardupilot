@@ -194,6 +194,24 @@ AP_Camera::trigger_pic_cleanup()
     }
 
 
+    if (_on_counter) {
+        _on_counter--;
+    } else {
+        switch (_trigger_type) {
+            case AP_CAMERA_TRIGGER_TYPE_SERVO:
+                SRV_Channels::set_output_pwm(SRV_Channel::k_cam_trigger, _servo_off_pwm);
+                break;
+            case AP_CAMERA_TRIGGER_TYPE_RELAY:
+                if (_relay_on) {
+                    _apm_relay->off(1);
+                } else {
+                    _apm_relay->on(1);
+                }
+                break;
+        }
+    }
+
+
 
 }
 
@@ -492,6 +510,8 @@ void AP_Camera::switch_on(void){
     }
     _camera_switched_on = true;
 
+    _on_counter = constrain_int16(2*_trigger_duration*5,0,255);
+
 
 }
 
@@ -526,5 +546,5 @@ void AP_Camera::switch_off(void){
     }
     _camera_switched_on = false;
 
-
+    _on_counter = constrain_int16(2*_trigger_duration*5,0,255);
 }
