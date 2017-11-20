@@ -40,11 +40,13 @@ public:
 		_camera_switched_on(false),
         current_loc(_loc),
         gps(_gps),
-        ahrs(_ahrs)
+        ahrs(_ahrs),
+        _boot_state_passed(0)
     {
 		AP_Param::setup_object_defaults(this, var_info);
         _apm_relay = obj_relay;
     }
+    
 
     // MAVLink methods
     void            control_msg(mavlink_message_t* msg);
@@ -69,6 +71,8 @@ public:
     void switch_on(void);
 
     void switch_off(void);
+
+    void initial_setup(void);
 
     static const struct AP_Param::GroupInfo        var_info[];
 
@@ -102,6 +106,10 @@ private:
     AP_Int8         _feedback_pin;
     AP_Int8         _feedback_polarity;
     AP_Int8         _control_level;
+    AP_Int8  _set_state;
+    AP_Int8  _old_state;
+
+    bool _boot_state_passed;
 
     // this is set to 1 when camera trigger pin has fired
     static volatile bool   _camera_triggered;

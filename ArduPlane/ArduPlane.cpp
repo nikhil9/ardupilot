@@ -107,6 +107,10 @@ void Plane::setup()
 
     init_ardupilot();
 
+    #if CAMERA == ENABLED
+    camera.initial_setup();
+    #endif
+
     // initialise the main loop scheduler
     scheduler.init(&scheduler_tasks[0], ARRAY_SIZE(scheduler_tasks));
 }

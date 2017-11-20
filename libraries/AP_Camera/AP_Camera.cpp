@@ -98,6 +98,19 @@ const AP_Param::GroupInfo AP_Camera::var_info[] = {
     // @Values: 0: No switch-off and switch-on control, 1: Only switch-off toggle on RTL 2:Switch-on and Switch-off over RTL and mavlink cmd
     // @User: Standard
     AP_GROUPINFO("CNTRL_LEVEL",  10, AP_Camera, _control_level, 1),
+
+
+    // @Param: CAM_SET_STATE
+    // @DisplayName: Camera forced state given by user
+    // @Description: User can set this param as state of camera as external information to autpilot
+    // @Values: 0: Camera is switched off 1: Camera is switched on
+    // @User: Standard
+    AP_GROUPINFO("SET_STATE",  11, AP_Camera, _set_state, 0),
+
+
+
+
+    
     
     AP_GROUPEND
 };
@@ -314,6 +327,18 @@ void AP_Camera::send_feedback(mavlink_channel_t chan)
 */
 void AP_Camera::update()
 {
+
+
+    if(_set_state == 0 && _camera_switched_on){
+        _camera_switched_on = false;
+    }
+
+    if(_set_state == 1 && !_camera_switched_on){
+        _camera_switched_on = true;
+    }
+    
+
+    
     if (gps.status() < AP_GPS::GPS_OK_FIX_3D) {
         return;
     }
@@ -509,6 +534,7 @@ void AP_Camera::switch_on(void){
         break;
     }
     _camera_switched_on = true;
+    _set_state = 1;
 
     _on_counter = constrain_int16(2*_trigger_duration*5,0,255);
 
@@ -545,6 +571,18 @@ void AP_Camera::switch_off(void){
         break;
     }
     _camera_switched_on = false;
+    _set_state = 0;
 
     _on_counter = constrain_int16(2*_trigger_duration*5,0,255);
+}
+
+void AP_Camera::initial_setup(void){
+
+    if(!_boot_state_passed){
+        _set_state = 0;
+        _boot_state_passed = 1;
+    }
+   
+
+    setup_feedback_callback();
 }
