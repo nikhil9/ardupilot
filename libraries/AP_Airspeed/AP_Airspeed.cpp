@@ -23,11 +23,14 @@
 #include <AP_Math/AP_Math.h>
 #include <GCS_MAVLink/GCS.h>
 #include <SRV_Channel/SRV_Channel.h>
+#include <AP_BoardConfig/AP_BoardConfig.h>
+#include <AP_BoardConfig/AP_BoardConfig_CAN.h>
 #include <utility>
 #include "AP_Airspeed.h"
 #include "AP_Airspeed_MS4525.h"
 #include "AP_Airspeed_MS5525.h"
 #include "AP_Airspeed_analog.h"
+#include "AP_Airspeed_UAVCAN.h"
 
 extern const AP_HAL::HAL &hal;
 
@@ -160,6 +163,27 @@ void AP_Airspeed::init()
     case TYPE_I2C_MS5525:
         sensor = new AP_Airspeed_MS5525(*this);
         break;
+
+#if HAL_WITH_UAVCAN
+    case TYPE_UAVCAN:
+
+    if (AP_BoardConfig_CAN::get_can_num_ifaces() != 0) {
+        for (uint8_t i = 0; i < MAX_NUMBER_OF_CAN_DRIVERS; i++) {
+            if (hal.can_mgr[i] != nullptr) {
+                AP_UAVCAN *uavcan = hal.can_mgr[i]->get_UAVCAN();
+                if (uavcan != nullptr) {
+                    uint8_t freemag = uavcan->find_smallest_free_airspeed_node();
+                    if (freemag != UINT8_MAX) {
+                        printf("Creating AP_Airspeed_UAVCAN\n\r");
+                        sensor = new AP_Airspeed_UAVCAN(*this);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+        break;
+#endif
     }
     if (sensor && !sensor->init()) {
         gcs().send_text(MAV_SEVERITY_INFO, "Airspeed init failed");

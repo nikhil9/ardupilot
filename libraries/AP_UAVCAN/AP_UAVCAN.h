@@ -15,6 +15,7 @@
 #include <AP_GPS/GPS_Backend.h>
 #include <AP_Baro/AP_Baro_Backend.h>
 #include <AP_Compass/AP_Compass.h>
+#include <AP_Airspeed/AP_Airspeed.h>
 
 #include <uavcan/helpers/heap_based_pool_allocator.hpp>
 
@@ -34,6 +35,8 @@
 #define AP_UAVCAN_MAX_GPS_NODES 4
 #define AP_UAVCAN_MAX_MAG_NODES 4
 #define AP_UAVCAN_MAX_BARO_NODES 4
+
+#define AP_UAVCAN_MAX_AIRSPEED_NODES 4
 
 #define AP_UAVCAN_SW_VERS_MAJOR 1
 #define AP_UAVCAN_SW_VERS_MINOR 0
@@ -94,6 +97,22 @@ public:
     uint8_t register_mag_listener_to_node(AP_Compass_Backend* new_listener, uint8_t node);
     void update_mag_state(uint8_t node);
 
+
+    struct Airspeed_Info {
+        float pressure;
+        float pressure_variance;
+        float temperature;
+        float temperature_variance;
+    };
+
+    uint8_t register_airspeed_listener(AP_Airspeed_Backend* new_listener, uint8_t preferred_channel);
+    void remove_airspeed_listener(AP_Airspeed_Backend* rem_listener);
+    Airspeed_Info *find_airspeed_node(uint8_t node);
+    uint8_t find_smallest_free_airspeed_node();
+    uint8_t register_airspeed_listener_to_node(AP_Airspeed_Backend* new_listener, uint8_t node);
+    void update_airspeed_state(uint8_t node);
+
+
     // synchronization for RC output
     bool rc_out_sem_take();
     void rc_out_sem_give();
@@ -125,6 +144,13 @@ private:
     Mag_Info _mag_node_state[AP_UAVCAN_MAX_MAG_NODES];
     uint8_t _mag_listener_to_node[AP_UAVCAN_MAX_LISTENERS];
     AP_Compass_Backend* _mag_listeners[AP_UAVCAN_MAX_LISTENERS];
+
+    // ------------------------- AIRSPEED
+    uint8_t _airspeed_nodes[AP_UAVCAN_MAX_BARO_NODES];
+    uint8_t _airspeed_node_taken[AP_UAVCAN_MAX_BARO_NODES];
+    Airspeed_Info _airspeed_node_state[AP_UAVCAN_MAX_AIRSPEED_NODES];
+    uint8_t _airspeed_listener_to_node[AP_UAVCAN_MAX_LISTENERS];
+    AP_Airspeed_Backend* _airspeed_listeners[AP_UAVCAN_MAX_LISTENERS];
 
     struct {
         uint16_t pulse;
