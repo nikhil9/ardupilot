@@ -1,92 +1,59 @@
 language: cpp
 sudo: false
-
 addons:
   coverity_scan:
     project:
-      name: "diydrones/ardupilot"
-      description: "Build submitted via Travis CI"
-    notification_email: andrew-scan@tridgell.net
-    build_command_prepend: "make clean"
-    build_command:   "make"
+      name: nikhil9/ardupilot
+      description: Build submitted via Travis CI
+    notification_email: nikhil@aus.co.in
+    build_command_prepend: make clean
+    build_command: make
     branch_pattern: coverity_scan
-    
   apt:
     sources:
-      - ubuntu-toolchain-r-test
-      - george-edison55-precise-backports
-#      - llvm-toolchain-precise-3.7
+    - ubuntu-toolchain-r-test
+    - george-edison55-precise-backports
     packages:
-      - build-essential
-      - gawk
-      - ccache
-      - genromfs
-      - libc6-i386
-      - libxml2-dev
-      - libxslt1-dev
-      - python-pip
-      - python-dev
-      - zlib1g-dev
-      - gcc-4.9
-      - g++-4.9
-      - cmake
-      - cmake-data
-#      - clang-3.7
-#      - llvm-3.7
-
+    - build-essential
+    - gawk
+    - ccache
+    - genromfs
+    - libc6-i386
+    - libxml2-dev
+    - libxslt1-dev
+    - python-pip
+    - python-dev
+    - zlib1g-dev
+    - gcc-4.9
+    - g++-4.9
+    - cmake
+    - cmake-data
 cache:
   ccache: true
   directories:
-    - $HOME/opt
-
+  - "$HOME/opt"
 before_install:
-  - Tools/scripts/configure-ci.sh
-  - if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then export CI_CRON_JOB=1 ; fi
-
+- Tools/scripts/configure-ci.sh
+- if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then export CI_CRON_JOB=1 ; fi
 script:
-  - python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle APMrover2
-  - python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle AntennaTracker
-  - python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduCopter
-  - python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduPlane
-  - python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduSub
-  - Tools/scripts/build_ci.sh
-
+- python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle APMrover2
+- python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle AntennaTracker
+- python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduCopter
+- python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduPlane
+- python Tools/autotest/param_metadata/param_parse.py --no-emit --vehicle ArduSub
+- Tools/scripts/build_ci.sh
 before_cache:
-  - ccache -z
-
+- ccache -z
 notifications:
-  webhooks:
-    urls:
-      - https://webhooks.gitter.im/e/e5e0b55e353e53945b4b
-    on_success: change  # options: [always|never|change] default: always
-    on_failure: always  # options: [always|never|change] default: always
-    on_start: false     # default: false
-
+  slack:
+    secure: f4U59lBQI1uV9DRrPPnUpKMYWFas8njpZHRF5NIMmCyD0D6ptnY3PwmZZNVGeIqRT0t6enh5nJVaoq3wmMOWzAWNRi8ky6Xr8edOdGwH5qgRW3GreJdvKtMLBG7x3kFGMSCN10m9Kz3+7lIZWgK4ncfuHMgjz2Jiqgx09xULU6jttRYKU6VftjxcejAYU6O80gu/vCVNwPTQtbhXDssVRcZWPXYfZ3EnkuL8/dyc6RAiD9nYo886mnzOiccXvGrH6BMs3bXy2R1TEtM0gEajeKWtzdyBHBuBX4QOt2LSJNBu4/p1oi8fa1gyMd4ETGcJSgP0gHAidf6kE7A3OxgMgwQldPrWthb7hhwX8gxuXRGv7qFJbuFRtrz/kFC9vO4uTuk/eY62/lAeeDCXQzy4Zw5OyUjQ5uBs5pV/PC/4UhH0ZZ+1mxAKyhAWZCELagQ9wqwd1iad7ZJpAot1ymH4JgfkP4YAoItlb5+ZJYVSv7s8NwmzjJw8YxcBkSyl7HHnxGjK27gwRJmS8T/GA4QKlkxkMZiz47q+HEKD4K9Amz3bEZ4MHe+7xU8aYktg/R8XULWKLtS7D0/ZTi//TaqzOnpSrbJdM7WPlK6ofIfb0SXFb2tzLPXykXejC5AnWVP9dRIPKoYVJLM8wPVRfVH0nip4ZKxdoI1W5ViAq2Wda38=
 compiler:
-  - gcc
-#  - clang
-
-env:
-  global:
-    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-    #   via the "travis encrypt" command using the project repo's public key
-    - secure: "FjIwqZQV2FhNPWYITX5LZXTE38yYqBaQdbm3QmbEg/30wnPTm1ZOLIU7o/aSvX615ImR8kHoryvFPDQDWc6wWfqTEs3Ytq2kIvcIJS2Y5l/0PFfpWJoH5gRd6hDThnoi+1oVMLvj1+bhn4yFlCCQ2vT/jxoGfiQqqgvHtv4fLzI="
-  matrix:
-    - CI_BUILD_TARGET="sitl minlure raspilot"
-    - CI_BUILD_TARGET="linux navio2 bebop"
-
+- gcc
+env: 
 matrix:
   fast_finish: true
   include:
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="px4-v1"
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="px4-v2"
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="px4-v3"
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="px4-v4"
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="px4-v4pro"
-    - compiler: "gcc"
-      env: CI_BUILD_TARGET="sitltest"
+  - compiler: gcc
+    env: CI_BUILD_TARGET="px4-v2"
+  - compiler: gcc
+    env: CI_BUILD_TARGET="sitltest"
