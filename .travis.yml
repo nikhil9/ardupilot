@@ -1,14 +1,6 @@
 language: cpp
 sudo: false
 addons:
-  coverity_scan:
-    project:
-      name: nikhil9/ardupilot
-      description: Build submitted via Travis CI
-    notification_email: nikhil@aus.co.in
-    build_command_prepend: make clean
-    build_command: make
-    branch_pattern: coverity_scan
   apt:
     sources:
     - ubuntu-toolchain-r-test

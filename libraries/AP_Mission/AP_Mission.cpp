@@ -1689,7 +1689,6 @@ void AP_Mission::set_adv_last_wp(void){
 
     Mission_Command tmp;
     if (!read_cmd_from_storage(get_prev_nav_cmd_index(), tmp)) {
-    	hal.console->printf("AP_Mission::set_adv_last_wp read_cmd_from_storage problem");
     	_adv_last_wp.set_and_save(1);
         return;
     }else{
@@ -1707,9 +1706,6 @@ void AP_Mission::set_adv_last_wp(void){
 
     	replace_cmd(get_prev_nav_cmd_index(), tmp);
 
-    	hal.console->printf("AP_Mission::set_adv_last_wp set_adv_last_wp %d,"
-    			" _nav_cmd.index %d,"
-    			" des_course %d\n\r", _adv_last_wp, _nav_cmd.index, desired_course);
     }
 
 }
