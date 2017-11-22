@@ -428,6 +428,11 @@ public:
     // available.
     bool jump_to_landing_sequence(void);
 
+    AP_Int8 _adv_en;
+    AP_Int16 _adv_last_wp;
+
+    void set_adv_last_wp(void);
+
     // user settable parameters
     static const struct AP_Param::GroupInfo var_info[];
 

@@ -465,6 +465,8 @@ void Plane::set_mode(enum FlightMode mode, mode_reason_t reason)
         prev_WP_loc = current_loc;
         do_RTL(get_RTL_altitude());
         camera.switch_off();
+        mission.set_adv_last_wp();
+
         break;
 
     case LOITER:

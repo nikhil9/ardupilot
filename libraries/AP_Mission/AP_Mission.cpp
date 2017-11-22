@@ -4,6 +4,7 @@
 #include "AP_Mission.h"
 #include <AP_Terrain/AP_Terrain.h>
 #include <GCS_MAVLink/GCS.h>
+#include <AP_Common/AP_Common.h>
 
 const AP_Param::GroupInfo AP_Mission::var_info[] = {
 
@@ -21,6 +22,20 @@ const AP_Param::GroupInfo AP_Mission::var_info[] = {
     // @Values: 0:Resume Mission, 1:Restart Mission
     // @User: Advanced
     AP_GROUPINFO("RESTART",  1, AP_Mission, _restart, AP_MISSION_RESTART_DEFAULT),
+
+    // @Param: ADV_EN
+    // @DisplayName: Enable mission resume from the last flight RTL Point.
+    // @Description:
+    // @Values: 0:Start Mission from beginning, 1:Start mission from last flight RTL waypoint.
+    // @User: Advanced
+    AP_GROUPINFO("ADV_EN",  2, AP_Mission, _adv_en, 0),
+
+    // @Param: ADV_LAST_WP
+    // @DisplayName: WP No of wp when ADV is triggered.
+    // @Description:
+    // @Values: wp no
+    // @User: Advanced
+    AP_GROUPINFO("ADV_LAST_WP",  3, AP_Mission, _adv_last_wp, 1),
 
     AP_GROUPEND
 };
@@ -46,6 +61,11 @@ void AP_Mission::init()
         AP_HAL::panic("AP_Mission Content must be 12 bytes");
     }
 
+
+    if(_adv_en == 0 || (_cmd_total < _adv_last_wp)){
+    	_adv_last_wp = 1;
+    }
+
     _last_change_time_ms = AP_HAL::millis();
 }
 
@@ -56,7 +76,7 @@ void AP_Mission::start()
     _flags.state = MISSION_RUNNING;
 
     reset(); // reset mission to the first command, resets jump tracking
-    
+
     // advance to the first command
     if (!advance_current_nav_cmd()) {
         // on failure set mission complete
@@ -1653,4 +1673,43 @@ bool AP_Mission::jump_to_landing_sequence(void)
 
     gcs().send_text(MAV_SEVERITY_WARNING, "Unable to start landing sequence");
     return false;
+}
+
+void AP_Mission::set_adv_last_wp(void){
+
+	if(!_adv_en || state() == MISSION_COMPLETE){
+		return;
+	}
+
+	struct Location current_loc;
+
+    if (!_ahrs.get_position(current_loc)) {
+        return;
+    }
+
+    Mission_Command tmp;
+    if (!read_cmd_from_storage(get_prev_nav_cmd_index(), tmp)) {
+    	hal.console->printf("AP_Mission::set_adv_last_wp read_cmd_from_storage problem");
+    	_adv_last_wp.set_and_save(1);
+        return;
+    }else{
+
+    	int32_t desired_course = wrap_180(get_bearing_cd(_nav_cmd.content.location, tmp.content.location)/100);
+    	tmp.content.location.alt = current_loc.alt;
+    	tmp.content.location.flags = current_loc.flags;
+    	tmp.content.location.lat = current_loc.lat;
+    	tmp.content.location.lng= current_loc.lng;
+    	tmp.content.location.options= current_loc.options;
+
+    	_adv_last_wp.set_and_save(get_prev_nav_cmd_index()==0 ? 1:get_prev_nav_cmd_index());
+
+    	location_update(tmp.content.location, desired_course, 100);
+
+    	replace_cmd(get_prev_nav_cmd_index(), tmp);
+
+    	hal.console->printf("AP_Mission::set_adv_last_wp set_adv_last_wp %d,"
+    			" _nav_cmd.index %d,"
+    			" des_course %d\n\r", _adv_last_wp, _nav_cmd.index, desired_course);
+    }
+
 }
