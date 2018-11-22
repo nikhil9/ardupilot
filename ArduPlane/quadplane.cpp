@@ -359,6 +359,28 @@ const AP_Param::GroupInfo QuadPlane::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("TAILSIT_THSCMX", 3, QuadPlane, tailsitter.throttle_scale_max, 5),
 	
+    // @Param: AUTOTUNE_AXES
+    // @DisplayName: Autotune axis bitmask
+    // @Description: 1-byte bitmap of axes to autotune
+    // @Values: 7:All,1:Roll Only,2:Pitch Only,4:Yaw Only,3:Roll and Pitch,5:Roll and Yaw,6:Pitch and Yaw
+    // @Bitmask: 0:Roll,1:Pitch,2:Yaw
+    // @User: Standard
+	AP_GROUPINFO("AUTOTUNE_AXES", 4, QuadPlane, autotune_axis_bitmask,  7),  // AUTOTUNE_AXIS_BITMASK_DEFAULT
+
+    // @Param: AUTOTUNE_AGGR
+    // @DisplayName: Autotune aggressiveness
+    // @Description: Autotune aggressiveness. Defines the bounce back used to detect size of the D term.
+    // @Range: 0.05 0.10
+    // @User: Standard
+	AP_GROUPINFO( "AUTOTUNE_AGGR", 5, QuadPlane, autotune_aggressiveness, 0.1f),
+
+    // @Param: AUTOTUNE_MIN_D
+    // @DisplayName: AutoTune minimum D
+    // @Description: Defines the minimum D gain
+    // @Range: 0.001 0.006
+    // @User: Standard
+	AP_GROUPINFO("AUTOTUNE_MIN_D", 6, QuadPlane, autotune_min_d,  0.001f),
+
     AP_GROUPEND
 };
 
@@ -929,7 +951,7 @@ bool QuadPlane::is_flying_vtol(void)
     if (plane.control_mode == GUIDED && guided_takeoff) {
         return true;
     }
-    if (plane.control_mode == QSTABILIZE || plane.control_mode == QHOVER || plane.control_mode == QLOITER) {
+    if (plane.control_mode == QSTABILIZE || plane.control_mode == QHOVER || plane.control_mode == QLOITER || plane.control_mode == QAUTOTUNE) {
         // in manual flight modes only consider aircraft landed when pilot demanded throttle is zero
         return plane.channel_throttle->get_control_in() > 0;
     }
@@ -1615,6 +1637,9 @@ void QuadPlane::control_run(void)
     case QRTL:
         control_qrtl();
         break;
+    case QAUTOTUNE:
+    	qautotune_run();
+        break;
     default:
         break;
     }
@@ -1655,6 +1680,9 @@ bool QuadPlane::init_mode(void)
     case QRTL:
         init_qrtl();
         break;
+    case QAUTOTUNE:
+    	qautotune_init(1);
+         break;
     case GUIDED:
         guided_takeoff = false;
         break;
@@ -1747,6 +1775,7 @@ bool QuadPlane::in_vtol_mode(void) const
             plane.control_mode == QLOITER ||
             plane.control_mode == QLAND ||
             plane.control_mode == QRTL ||
+			plane.control_mode == QAUTOTUNE ||
             ((plane.control_mode == GUIDED || plane.control_mode == AVOID_ADSB) && plane.auto_state.vtol_loiter) ||
             in_vtol_auto());
 }
@@ -2321,7 +2350,8 @@ int8_t QuadPlane::forward_throttle_pct(void)
         !motors->armed() ||
         vel_forward.gain <= 0 ||
         plane.control_mode == QSTABILIZE ||
-        plane.control_mode == QHOVER) {
+        plane.control_mode == QHOVER ||
+		plane.control_mode == QAUTOTUNE) {
         return 0;
     }
 
@@ -2398,7 +2428,8 @@ float QuadPlane::get_weathervane_yaw_rate_cds(void)
         !motors->armed() ||
         weathervane.gain <= 0 ||
         plane.control_mode == QSTABILIZE ||
-        plane.control_mode == QHOVER) {
+        plane.control_mode == QHOVER ||
+		plane.control_mode == QAUTOTUNE) {
         weathervane.last_output = 0;
         return 0;
     }
@@ -2589,4 +2620,75 @@ float QuadPlane::stopping_distance(void)
     // varies with pitch, but it gives something for the user to
     // control the transition distance in a reasonable way
     return plane.ahrs.groundspeed_vector().length_squared() / (2 * transition_decel);
+}
+
+struct PACKED log_AutoTune {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t axis;           // roll or pitch
+    uint8_t tune_step;      // tuning PI or D up or down
+    float   meas_target;    // target achieved rotation rate
+    float   meas_min;       // maximum achieved rotation rate
+    float   meas_max;       // maximum achieved rotation rate
+    float   new_gain_rp;    // newly calculated gain
+    float   new_gain_rd;    // newly calculated gain
+    float   new_gain_sp;    // newly calculated gain
+    float   new_ddt;        // newly calculated gain
+};
+
+// Write an Autotune data packet
+void QuadPlane::Log_Write_AutoTune(uint8_t _axis, uint8_t tune_step, float meas_target, float meas_min, float meas_max, float new_gain_rp, float new_gain_rd, float new_gain_sp, float new_ddt)
+{
+    struct log_AutoTune pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_QAUTOTUNE_MSG),
+        time_us     : AP_HAL::micros64(),
+        axis        : _axis,
+        tune_step   : tune_step,
+        meas_target : meas_target,
+        meas_min    : meas_min,
+        meas_max    : meas_max,
+        new_gain_rp : new_gain_rp,
+        new_gain_rd : new_gain_rd,
+        new_gain_sp : new_gain_sp,
+        new_ddt     : new_ddt
+    };
+    plane.DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+
+struct PACKED log_AutoTuneDetails {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float    angle_cd;      // lean angle in centi-degrees
+    float    rate_cds;      // current rotation rate in centi-degrees / second
+};
+
+// Write an Autotune data packet
+void QuadPlane::Log_Write_AutoTuneDetails(float angle_cd, float rate_cds)
+{
+    struct log_AutoTuneDetails pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_QAUTOTUNEDETAILS_MSG),
+        time_us     : AP_HAL::micros64(),
+        angle_cd    : angle_cd,
+        rate_cds    : rate_cds
+    };
+    plane.DataFlash.WriteBlock(&pkt, sizeof(pkt));
+}
+
+struct PACKED log_Event {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    uint8_t id;
+};
+
+// Wrote an event packet
+void QuadPlane::Log_Write_Event(uint8_t id)
+{
+//    if (should_log(MASK_LOG_ANY)) {
+        struct log_Event pkt = {
+            LOG_PACKET_HEADER_INIT(LOG_EVENT_MSG),
+            time_us  : AP_HAL::micros64(),
+            id       : id
+        };
+        plane.DataFlash.WriteCriticalBlock(&pkt, sizeof(pkt));
+//    }
 }

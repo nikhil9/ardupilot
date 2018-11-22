@@ -9,6 +9,15 @@
 #include <AC_Avoidance/AC_Avoid.h>
 #include <AP_Proximity/AP_Proximity.h>
 
+#define DATA_AUTOTUNE_INITIALISED           30
+#define DATA_AUTOTUNE_OFF                   31
+#define DATA_AUTOTUNE_RESTART               32
+#define DATA_AUTOTUNE_SUCCESS               33
+#define DATA_AUTOTUNE_FAILED                34
+#define DATA_AUTOTUNE_REACHED_LIMIT         35
+#define DATA_AUTOTUNE_PILOT_TESTING         36
+#define DATA_AUTOTUNE_SAVEDGAINS            37
+
 /*
   QuadPlane specific functionality
  */
@@ -463,6 +472,145 @@ private:
      */
     bool is_vtol_land(uint16_t id) const;
     
+
+
+    bool qautotune_init(bool ignore_checks);
+    void qautotune_run();
+
+    void qautotune_save_tuning_gains();
+    void qautotune_stop();
+
+    bool qautotune_start(bool ignore_checks);
+
+    void qautotune_attitude_control();
+    void qautotune_backup_gains_and_initialise();
+    void qautotune_load_orig_gains();
+    void qautotune_load_tuned_gains();
+    void qautotune_load_intra_test_gains();
+    void qautotune_load_twitch_gains();
+    void qautotune_update_gcs(uint8_t message_id);
+    bool qautotune_roll_enabled();
+    bool qautotune_pitch_enabled();
+    bool qautotune_yaw_enabled();
+    void qautotune_twitching_test_rate(float rate, float rate_target, float &meas_rate_min, float &meas_rate_max);
+    void qautotune_twitching_test_angle(float angle, float rate, float angle_target, float &meas_angle_min, float &meas_angle_max, float &meas_rate_min, float &meas_rate_max);
+    void qautotune_twitching_measure_acceleration(float &rate_of_change, float rate_measurement, float &rate_measurement_max);
+    void qautotune_updating_rate_d_up(float &tune_d, float tune_d_min, float tune_d_max, float tune_d_step_ratio, float &tune_p, float tune_p_min, float tune_p_max, float tune_p_step_ratio, float rate_target, float meas_rate_min, float meas_rate_max);
+    void qautotune_updating_rate_d_down(float &tune_d, float tune_d_min, float tune_d_step_ratio, float &tune_p, float tune_p_min, float tune_p_max, float tune_p_step_ratio, float rate_target, float meas_rate_min, float meas_rate_max);
+    void qautotune_updating_rate_p_up_d_down(float &tune_d, float tune_d_min, float tune_d_step_ratio, float &tune_p, float tune_p_min, float tune_p_max, float tune_p_step_ratio, float rate_target, float meas_rate_min, float meas_rate_max);
+    void qautotune_updating_angle_p_down(float &tune_p, float tune_p_min, float tune_p_step_ratio, float angle_target, float meas_angle_max, float meas_rate_min, float meas_rate_max);
+    void qautotune_updating_angle_p_up(float &tune_p, float tune_p_max, float tune_p_step_ratio, float angle_target, float meas_angle_max, float meas_rate_min, float meas_rate_max);
+    void qautotune_get_poshold_attitude(float &roll_cd, float &pitch_cd, float &yaw_cd);
+
+
+    void Log_Write_AutoTune(uint8_t axis, uint8_t tune_step, float meas_target, float meas_min, float meas_max, float new_gain_rp, float new_gain_rd, float new_gain_sp, float new_ddt);
+    void Log_Write_AutoTuneDetails(float angle_cd, float rate_cds);
+    void Log_Write_Event(uint8_t id);
+
+
+    void qautotune_send_step_string();
+    const char *qautotune_level_issue_string() const;
+    const char * qautotune_type_string() const;
+    void qautotune_announce_state_to_gcs();
+    void qautotune_do_gcs_announcements();
+
+    enum LEVEL_ISSUE {
+        LEVEL_ISSUE_NONE,
+        LEVEL_ISSUE_ANGLE_ROLL,
+        LEVEL_ISSUE_ANGLE_PITCH,
+        LEVEL_ISSUE_ANGLE_YAW,
+        LEVEL_ISSUE_RATE_ROLL,
+        LEVEL_ISSUE_RATE_PITCH,
+        LEVEL_ISSUE_RATE_YAW,
+    };
+    bool qautotune_check_level(const enum LEVEL_ISSUE issue, const float current, const float maximum);
+    bool qautotune_currently_level();
+
+    // autotune modes (high level states)
+    enum TuneMode {
+        UNINITIALISED = 0,        // autotune has never been run
+        TUNING = 1,               // autotune is testing gains
+        SUCCESS = 2,              // tuning has completed, user is flight testing the new gains
+        FAILED = 3,               // tuning has failed, user is flying on original gains
+    };
+
+    // steps performed while in the tuning mode
+    enum StepType {
+        WAITING_FOR_LEVEL = 0,    // autotune is waiting for vehicle to return to level before beginning the next twitch
+        TWITCHING = 1,            // autotune has begun a twitch and is watching the resulting vehicle movement
+        UPDATE_GAINS = 2          // autotune has completed a twitch and is updating the gains based on the results
+    };
+
+    // things that can be tuned
+    enum AxisType {
+        ROLL = 0,                 // roll axis is being tuned (either angle or rate)
+        PITCH = 1,                // pitch axis is being tuned (either angle or rate)
+        YAW = 2,                  // pitch axis is being tuned (either angle or rate)
+    };
+
+    // mini steps performed while in Tuning mode, Testing step
+    enum TuneType {
+        RD_UP = 0,                // rate D is being tuned up
+        RD_DOWN = 1,              // rate D is being tuned down
+        RP_UP = 2,                // rate P is being tuned up
+        SP_DOWN = 3,              // angle P is being tuned down
+        SP_UP = 4                 // angle P is being tuned up
+    };
+
+    TuneMode mode                : 2;    // see TuneMode for what modes are allowed
+    bool     pilot_override      : 1;    // true = pilot is overriding controls so we suspend tuning temporarily
+    AxisType axis                : 2;    // see AxisType for which things can be tuned
+    bool     positive_direction  : 1;    // false = tuning in negative direction (i.e. left for roll), true = positive direction (i.e. right for roll)
+    StepType step                : 2;    // see StepType for what steps are performed
+    TuneType tune_type           : 3;    // see TuneType
+    bool     ignore_next         : 1;    // true = ignore the next test
+    bool     twitch_first_iter   : 1;    // true on first iteration of a twitch (used to signal we must step the attitude or rate target)
+    bool     use_poshold         : 1;    // true = enable position hold
+    bool     have_position       : 1;    // true = start_position is value
+    Vector3f start_position;
+
+// variables
+    uint32_t override_time;                         // the last time the pilot overrode the controls
+    float    test_rate_min;                         // the minimum angular rate achieved during TESTING_RATE step
+    float    test_rate_max;                         // the maximum angular rate achieved during TESTING_RATE step
+    float    test_angle_min;                        // the minimum angle achieved during TESTING_ANGLE step
+    float    test_angle_max;                        // the maximum angle achieved during TESTING_ANGLE step
+    uint32_t step_start_time;                       // start time of current tuning step (used for timeout checks)
+    uint32_t step_stop_time;                        // start time of current tuning step (used for timeout checks)
+    int8_t   counter;                               // counter for tuning gains
+    float    target_rate, start_rate;               // target and start rate
+    float    target_angle, start_angle;             // target and start angles
+    float    desired_yaw;                           // yaw heading during tune
+    float    rate_max, test_accel_max;              // maximum acceleration variables
+
+    LowPassFilterFloat  rotation_rate_filt;         // filtered rotation rate in radians/second
+
+// backup of currently being tuned parameter values
+    float    orig_roll_rp = 0, orig_roll_ri, orig_roll_rd, orig_roll_sp, orig_roll_accel;
+    float    orig_pitch_rp = 0, orig_pitch_ri, orig_pitch_rd, orig_pitch_sp, orig_pitch_accel;
+    float    orig_yaw_rp = 0, orig_yaw_ri, orig_yaw_rd, orig_yaw_rLPF, orig_yaw_sp, orig_yaw_accel;
+    bool     orig_bf_feedforward;
+
+// currently being tuned parameter values
+    float    tune_roll_rp, tune_roll_rd, tune_roll_sp, tune_roll_accel;
+    float    tune_pitch_rp, tune_pitch_rd, tune_pitch_sp, tune_pitch_accel;
+    float    tune_yaw_rp, tune_yaw_rLPF, tune_yaw_sp, tune_yaw_accel;
+
+    uint32_t announce_time;
+    float lean_angle;
+    float rotation_rate;
+    float qautotune_roll_cd, qautotune_pitch_cd;
+
+    struct {
+        LEVEL_ISSUE issue{LEVEL_ISSUE_NONE};
+        float maximum;
+        float current;
+    } level_problem;
+
+    AP_Int8                 autotune_axis_bitmask;
+    AP_Float                autotune_aggressiveness;
+    AP_Float                autotune_min_d;
+
 public:
     void motor_test_output();
     MAV_RESULT mavlink_motor_test_start(mavlink_channel_t chan, uint8_t motor_seq, uint8_t throttle_type,

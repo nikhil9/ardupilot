@@ -644,7 +644,8 @@ void Plane::update_flight_mode(void)
     case QHOVER:
     case QLOITER:
     case QLAND:
-    case QRTL: {
+    case QRTL:
+    case QAUTOTUNE:{
         // set nav_roll and nav_pitch using sticks
         int16_t roll_limit = MIN(roll_limit_cd, quadplane.aparm.angle_max);
         nav_roll_cd  = (channel_roll->get_control_in() / 4500.0) * roll_limit;
@@ -761,6 +762,7 @@ void Plane::update_navigation()
     case QLOITER:
     case QLAND:
     case QRTL:
+    case QAUTOTUNE:
         // nothing to do
         break;
     }

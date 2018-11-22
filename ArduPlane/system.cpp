@@ -464,6 +464,7 @@ void Plane::set_mode(enum FlightMode mode, mode_reason_t reason)
     case QLOITER:
     case QLAND:
     case QRTL:
+    case QAUTOTUNE:
         throttle_allows_nudging = true;
         auto_navigation_mode = false;
         if (!quadplane.init_mode()) {
@@ -686,6 +687,9 @@ void Plane::notify_flight_mode(enum FlightMode mode)
     case QRTL:
         notify.set_flight_mode_str("QRTL");
         break;
+    case QAUTOTUNE:
+    	notify.set_flight_mode_str("QAutotune");
+    	 break;
     default:
         notify.set_flight_mode_str("----");
         break;
@@ -764,5 +768,7 @@ bool Plane::disarm_motors(void)
     // reload target airspeed which could have been modified by a mission
     plane.aparm.airspeed_cruise_cm.load();
     
+    quadplane.qautotune_save_tuning_gains();
+
     return true;
 }

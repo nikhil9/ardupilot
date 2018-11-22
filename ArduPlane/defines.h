@@ -65,7 +65,8 @@ enum FlightMode {
     QHOVER        = 18,
     QLOITER       = 19,
     QLAND         = 20,
-    QRTL          = 21
+    QRTL          = 21,
+	QAUTOTUNE	  = 22
 };
 
 enum mode_reason_t {
@@ -149,6 +150,9 @@ enum log_messages {
     LOG_PIQY_MSG,
     LOG_PIQA_MSG,
     LOG_AETR_MSG,
+	LOG_EVENT_MSG,
+	LOG_QAUTOTUNE_MSG,
+	LOG_QAUTOTUNEDETAILS_MSG
 };
 
 #define MASK_LOG_ATTITUDE_FAST          (1<<0)

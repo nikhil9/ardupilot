@@ -33,6 +33,7 @@ MAV_MODE GCS_MAVLINK_Plane::base_mode() const
     case QHOVER:
     case QLOITER:
     case QLAND:
+    case QAUTOTUNE:
     case CRUISE:
         _base_mode = MAV_MODE_FLAG_STABILIZE_ENABLED;
         break;
