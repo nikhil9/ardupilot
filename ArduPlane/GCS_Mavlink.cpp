@@ -1642,6 +1642,7 @@ bool GCS_MAVLINK_Plane::set_mode(const uint8_t mode)
     case QLOITER:
     case QLAND:
     case QRTL:
+    case QAUTOTUNE:
         plane.set_mode((enum FlightMode)mode, MODE_REASON_GCS_COMMAND);
         return true;
     }

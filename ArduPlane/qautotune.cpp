@@ -163,10 +163,10 @@ void QuadPlane::qautotune_stop()
 bool QuadPlane::qautotune_start(bool ignore_checks)
 {
     // only allow flip from Stabilize, AltHold,  PosHold or Loiter modes
-    if (plane.control_mode != QSTABILIZE && plane.control_mode != QHOVER &&
-        plane.control_mode != QLOITER) {
-        return false;
-    }
+//    if (plane.control_mode != QSTABILIZE && plane.control_mode != QHOVER &&
+//        plane.control_mode != QLOITER) {
+//        return false;
+//    }
 
     // ensure throttle is above zero
 //    if (ap.throttle_zero) {
