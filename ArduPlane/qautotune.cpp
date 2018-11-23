@@ -337,8 +337,10 @@ void QuadPlane::qautotune_run()
 
     // get pilot desired lean angles
 //    get_pilot_desired_lean_angles(target_roll, target_pitch, copter.aparm.angle_max, attitude_control->get_althold_lean_angle_max());
-    target_roll = plane.nav_roll_cd;
-    target_pitch = plane.nav_pitch_cd;
+//    target_roll = plane.nav_roll_cd;
+//    target_pitch = plane.nav_pitch_cd;
+    target_roll = plane.channel_roll->get_control_in();
+    target_pitch = plane.channel_pitch->get_control_in();
 
     // get pilot's desired yaw rate
 //    target_yaw_rate = get_pilot_desired_yaw_rate(channel_yaw->get_control_in());
@@ -395,7 +397,7 @@ void QuadPlane::qautotune_run()
                 // set gains to their intra-test values (which are very close to the original gains)
                 // load_intra_test_gains(); //I think we should be keeping the originals here to let the I term settle quickly
                 step = WAITING_FOR_LEVEL; // set tuning step back from beginning
-                desired_yaw = ahrs.yaw_sensor;
+                desired_yaw = ahrs_view->yaw_sensor;
             }
         }
 
@@ -437,33 +439,33 @@ bool QuadPlane::qautotune_check_level(const LEVEL_ISSUE issue, const float curre
 bool QuadPlane::qautotune_currently_level()
 {
     if (!qautotune_check_level(LEVEL_ISSUE_ANGLE_ROLL,
-                     labs(ahrs.roll_sensor - qautotune_roll_cd),
+                     labs(ahrs_view->roll_sensor - qautotune_roll_cd),
                      AUTOTUNE_LEVEL_ANGLE_CD)) {
         return false;
     }
 
     if (!qautotune_check_level(LEVEL_ISSUE_ANGLE_PITCH,
-                     labs(ahrs.pitch_sensor - qautotune_pitch_cd),
+                     labs(ahrs_view->pitch_sensor - qautotune_pitch_cd),
                      AUTOTUNE_LEVEL_ANGLE_CD)) {
         return false;
     }
     if (!qautotune_check_level(LEVEL_ISSUE_ANGLE_YAW,
-                     labs(wrap_180_cd(ahrs.yaw_sensor-(int32_t)desired_yaw)),
+                     labs(wrap_180_cd(ahrs_view->yaw_sensor-(int32_t)desired_yaw)),
                      AUTOTUNE_LEVEL_ANGLE_CD)) {
         return false;
     }
     if (!qautotune_check_level(LEVEL_ISSUE_RATE_ROLL,
-                     (ToDeg(ahrs.get_gyro().x) * 100.0f),
+                     (ToDeg(ahrs_view->get_gyro().x) * 100.0f),
                      AUTOTUNE_LEVEL_RATE_RP_CD)) {
         return false;
     }
     if (!qautotune_check_level(LEVEL_ISSUE_RATE_PITCH,
-                     (ToDeg(ahrs.get_gyro().y) * 100.0f),
+                     (ToDeg(ahrs_view->get_gyro().y) * 100.0f),
                      AUTOTUNE_LEVEL_RATE_RP_CD)) {
         return false;
     }
     if (!qautotune_check_level(LEVEL_ISSUE_RATE_YAW,
-                     (ToDeg(ahrs.get_gyro().z) * 100.0f),
+                     (ToDeg(ahrs_view->get_gyro().z) * 100.0f),
                      AUTOTUNE_LEVEL_RATE_Y_CD)) {
         return false;
     }
@@ -518,8 +520,8 @@ void QuadPlane::qautotune_attitude_control()
         case ROLL:
             target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_roll())*100.0f, AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, AUTOTUNE_TARGET_RATE_RLLPIT_CDS);
             target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_roll())*100.0f, AUTOTUNE_TARGET_MIN_ANGLE_RLLPIT_CD, AUTOTUNE_TARGET_ANGLE_RLLPIT_CD);
-            start_rate = ToDeg(ahrs.get_gyro().x) * 100.0f;
-            start_angle = ahrs.roll_sensor;
+            start_rate = ToDeg(ahrs_view->get_gyro().x) * 100.0f;
+            start_angle = ahrs_view->roll_sensor;
             rotation_rate_filt.set_cutoff_frequency(attitude_control->get_rate_roll_pid().filt_hz()*2.0f);
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
                 rotation_rate_filt.reset(start_rate);
@@ -530,8 +532,8 @@ void QuadPlane::qautotune_attitude_control()
         case PITCH:
             target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_pitch())*100.0f, AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, AUTOTUNE_TARGET_RATE_RLLPIT_CDS);
             target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_pitch())*100.0f, AUTOTUNE_TARGET_MIN_ANGLE_RLLPIT_CD, AUTOTUNE_TARGET_ANGLE_RLLPIT_CD);
-            start_rate = ToDeg(ahrs.get_gyro().y) * 100.0f;
-            start_angle = ahrs.pitch_sensor;
+            start_rate = ToDeg(ahrs_view->get_gyro().y) * 100.0f;
+            start_angle = ahrs_view->pitch_sensor;
             rotation_rate_filt.set_cutoff_frequency(attitude_control->get_rate_pitch_pid().filt_hz()*2.0f);
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
                 rotation_rate_filt.reset(start_rate);
@@ -542,8 +544,8 @@ void QuadPlane::qautotune_attitude_control()
         case YAW:
             target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_yaw()*0.75f)*100.0f, AUTOTUNE_TARGET_MIN_RATE_YAW_CDS, AUTOTUNE_TARGET_RATE_YAW_CDS);
             target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_yaw()*0.75f)*100.0f, AUTOTUNE_TARGET_MIN_ANGLE_YAW_CD, AUTOTUNE_TARGET_ANGLE_YAW_CD);
-            start_rate = ToDeg(ahrs.get_gyro().z) * 100.0f;
-            start_angle = ahrs.yaw_sensor;
+            start_rate = ToDeg(ahrs_view->get_gyro().z) * 100.0f;
+            start_angle = ahrs_view->yaw_sensor;
             rotation_rate_filt.set_cutoff_frequency(AUTOTUNE_Y_FILT_FREQ);
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
                 rotation_rate_filt.reset(start_rate);
@@ -608,27 +610,27 @@ void QuadPlane::qautotune_attitude_control()
         switch (axis) {
         case ROLL:
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().x) * 100.0f), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().x) * 100.0f), plane.scheduler.get_loop_period_s());
             } else {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().x) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().x) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
             }
-            lean_angle = direction_sign * (ahrs.roll_sensor - (int32_t)start_angle);
+            lean_angle = direction_sign * (ahrs_view->roll_sensor - (int32_t)start_angle);
             break;
         case PITCH:
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().y) * 100.0f), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().y) * 100.0f), plane.scheduler.get_loop_period_s());
             } else {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().y) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().y) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
             }
-            lean_angle = direction_sign * (ahrs.pitch_sensor - (int32_t)start_angle);
+            lean_angle = direction_sign * (ahrs_view->pitch_sensor - (int32_t)start_angle);
             break;
         case YAW:
             if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().z) * 100.0f), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().z) * 100.0f), plane.scheduler.get_loop_period_s());
             } else {
-                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs.get_gyro().z) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
+                rotation_rate = rotation_rate_filt.apply(direction_sign * (ToDeg(ahrs_view->get_gyro().z) * 100.0f - start_rate), plane.scheduler.get_loop_period_s());
             }
-            lean_angle = direction_sign * wrap_180_cd(ahrs.yaw_sensor-(int32_t)start_angle);
+            lean_angle = direction_sign * wrap_180_cd(ahrs_view->yaw_sensor-(int32_t)start_angle);
             break;
         }
 
@@ -865,7 +867,7 @@ void QuadPlane::qautotune_attitude_control()
         positive_direction = !positive_direction;
 
         if (axis == YAW) {
-            attitude_control->input_euler_angle_roll_pitch_yaw(0.0f, 0.0f, ahrs.yaw_sensor, false);
+            attitude_control->input_euler_angle_roll_pitch_yaw(0.0f, 0.0f, ahrs_view->yaw_sensor, false);
         }
 
         // set gains to their intra-test values (which are very close to the original gains)
@@ -895,7 +897,7 @@ void QuadPlane::qautotune_backup_gains_and_initialise()
     step_start_time = millis();
     tune_type = RD_UP;
 
-    desired_yaw = ahrs.yaw_sensor;
+    desired_yaw = ahrs_view->yaw_sensor;
 
     autotune_aggressiveness = constrain_float(autotune_aggressiveness, 0.05f, 0.2f);
 
@@ -1555,8 +1557,8 @@ void QuadPlane::qautotune_get_poshold_attitude(float &roll_cd_out, float &pitch_
     angle_ne *= scaling / dist_cm;
 
     // rotate into body frame
-    pitch_cd_out = angle_ne.x * ahrs.cos_yaw() + angle_ne.y * ahrs.sin_yaw();
-    roll_cd_out  = angle_ne.x * ahrs.sin_yaw() - angle_ne.y * ahrs.cos_yaw();
+    pitch_cd_out = angle_ne.x * ahrs_view->cos_yaw() + angle_ne.y * ahrs_view->sin_yaw();
+    roll_cd_out  = angle_ne.x * ahrs_view->sin_yaw() - angle_ne.y * ahrs_view->cos_yaw();
 
     if (dist_cm < yaw_dist_limit_cm) {
         // no yaw adjustment
