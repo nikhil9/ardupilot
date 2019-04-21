@@ -429,6 +429,10 @@ private:
     // The amount current ground speed is below min ground speed.  Centimeters per second
     int32_t groundspeed_undershoot;
 
+    // Ground speed
+    // Requested groundspeed. Only works during mission by setting DO_CHANGE_SPEED P1 to 1
+    int32_t target_groundspeed_cm = 0;
+
     // Difference between current altitude and desired altitude.  Centimeters
     int32_t altitude_error_cm;
 
