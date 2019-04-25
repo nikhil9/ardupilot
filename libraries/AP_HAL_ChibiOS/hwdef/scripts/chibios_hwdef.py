@@ -558,6 +558,11 @@ def write_mcu_config(f):
         env_vars['IOMCU_FW'] = get_config('IOMCU_FW')
     else:
         env_vars['IOMCU_FW'] = 0
+        
+    if get_config('PPK_FW', required=False):
+        env_vars['PPK_FW'] = get_config('PPK_FW')
+    else:
+        env_vars['PPK_FW'] = 0
 
     # write any custom STM32 defines
     for d in alllines:

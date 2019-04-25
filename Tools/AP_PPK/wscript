@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+def build(bld):
+    bld.ap_stlib(
+        name= 'AP_PPK_libs',
+        ap_vehicle='AP_PPK',
+        ap_libraries= [
+        ],
+        exclude_src=[
+            'libraries/AP_HAL_ChibiOS/Storage.cpp'
+        ]
+    )
+    bld.ap_program(
+        program_name='AP_PPK',
+        use='AP_PPK_libs',
+        program_groups=['bin','AP_PPK'],
+    )
