@@ -5,11 +5,8 @@ def build(bld):
     bld.ap_stlib(
         name= 'AP_PPK_libs',
         ap_vehicle='AP_PPK',
-        ap_libraries= [
+        ap_libraries= bld.ap_common_vehicle_libraries() + [
         ],
-        exclude_src=[
-            'libraries/AP_HAL_ChibiOS/Storage.cpp'
-        ]
     )
     bld.ap_program(
         program_name='AP_PPK',
